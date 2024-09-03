@@ -66,24 +66,47 @@ class DetailProductSerializer(serializers.ModelSerializer):
 
 class ProductSerializer(serializers.ModelSerializer):
 
-    image = serializers.ImageField()
+    image = serializers.ImageField(validators=[])
 
     class Meta:
         model = Product
         fields = '__all__'
 
+    # def create(self, validated_data):
+    #
+    #     image = validated_data.pop('image')
+    #     tags = validated_data.pop('tags')
+    #
+    #     product = Product.objects.create(**validated_data)
+    #     product.tags.add(*tags)
+    #     product.save()
+    #
+    #     product_image = ProductImage.objects.create(product=product)
+    #     product_image.image.save(image.name, image)
+    #     product_image.save()
+    #
+    #     return product
+
     def create(self, validated_data):
+        # request = self.context['request']
 
         image = validated_data.pop('image')
-        tags = validated_data.pop('tags')
-
-        product = Product.objects.create(**validated_data)
-        product.tags.add(*tags)
-        product.save()
+        product = super().create(validated_data)
 
         product_image = ProductImage.objects.create(product=product)
         product_image.image.save(image.name, image)
         product_image.save()
+
+        return product
+
+    def update(self, instance, validated_data):
+        image = validated_data.pop('image', None)
+        product: Product = super().update(instance, validated_data)
+
+        if image:
+            product_image = product.images.first()
+            product_image.image.save(image.name, image)
+            product_image.save()
 
         return product
 
@@ -100,6 +123,11 @@ class BulkCreateProductAttributeSerializer(serializers.Serializer):
     attributes = ProductAttributeSerializer(many=True)
 
 
+class UpdateAttributeForProductSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = ProductAttribute
+        exclude = ('product',)
 
 
 
