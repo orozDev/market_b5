@@ -3,6 +3,7 @@ from django.db.models import Q
 from django.core.paginator import Paginator
 from rest_framework.decorators import api_view
 
+from api.filters import ProductFilter
 from api.serializers import DetailProductSerializer, ListProductSerializer, ProductSerializer, \
     BulkCreateProductAttributeSerializer, ProductAttributeSerializer, UpdateAttributeForProductSerializer
 from store.models import Product, ProductAttribute
@@ -31,6 +32,10 @@ def list_create_products(request):
             Q(description__icontains=search) |
             Q(content__icontains=search)
         )
+
+    filterset = ProductFilter(data=request.GET, queryset=products)
+
+    products = filterset.qs
 
     orders = ['name', 'price', 'rating', 'created_at']
     ordering: str = request.GET.get('ordering')

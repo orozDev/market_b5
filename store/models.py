@@ -67,6 +67,12 @@ class Product(TimeStampAbstractModel):
             return self.images.first().image
         return None
 
+    @property
+    def total_price(self):
+        if self.images.first():
+            return self.images.first().image
+        return None
+
     def __str__(self):
         return f'{self.name}'
 
