@@ -44,9 +44,11 @@ INSTALLED_APPS = [
     'rest_framework',
     'django_cleanup',
     'django_filters',
+    'phonenumber_field',
 
     # apps
     'store',
+    'account',
 ]
 
 MIDDLEWARE = [
@@ -141,3 +143,5 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 REST_FRAMEWORK = {}
+
+AUTH_USER_MODEL = 'account.User'
