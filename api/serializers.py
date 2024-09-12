@@ -70,7 +70,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Product
-        fields = '__all__'
+        exclude = ('user',)
 
     # def create(self, validated_data):
     #
@@ -89,6 +89,8 @@ class ProductSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         # request = self.context['request']
+        #
+        # validated_data['user'] = request.user
 
         image = validated_data.pop('image')
         product = super().create(validated_data)

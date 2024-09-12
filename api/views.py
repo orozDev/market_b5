@@ -1,8 +1,9 @@
 from pprint import pprint
 from django.db.models import Q
 from django.core.paginator import Paginator
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 
+from api.auth.permissions import IsSuperUser
 from api.filters import ProductFilter
 from api.serializers import DetailProductSerializer, ListProductSerializer, ProductSerializer, \
     BulkCreateProductAttributeSerializer, ProductAttributeSerializer, UpdateAttributeForProductSerializer
@@ -10,14 +11,16 @@ from store.models import Product, ProductAttribute
 from rest_framework.response import Response
 from rest_framework.generics import get_object_or_404
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 
 
 @api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticatedOrReadOnly | IsSuperUser])
 def list_create_products(request):
     if request.method == 'POST':
         serializer = ProductSerializer(data=request.data)
         if serializer.is_valid():
-            product = serializer.save()
+            product = serializer.save(user=request.user)
             read_serializer = ListProductSerializer(product, context={'request': request})
             return Response(read_serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
@@ -61,6 +64,7 @@ def list_create_products(request):
 
 
 @api_view(['GET', 'PATCH', 'DELETE'])
+@permission_classes([IsAuthenticatedOrReadOnly | IsSuperUser])
 def detail_update_product(request, id):
     product = get_object_or_404(Product, id=id)
 
@@ -80,6 +84,7 @@ def detail_update_product(request, id):
 
 
 @api_view(['POST'])
+@permission_classes([IsAuthenticated | IsSuperUser])
 def create_product_attributes(request):
     serializer = BulkCreateProductAttributeSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -92,6 +97,7 @@ def create_product_attributes(request):
 
 
 @api_view(['DELETE', 'PATCH'])
+@permission_classes([IsAuthenticated | IsSuperUser])
 def update_delete_product_attributes(request, id):
     attribute = get_object_or_404(ProductAttribute, id=id)
 
