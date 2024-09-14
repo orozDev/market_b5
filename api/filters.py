@@ -1,15 +1,15 @@
-import django_filters
+from django_filters import rest_framework as filters
 
 from store.models import Product, Category
 
 
-class ProductFilter(django_filters.FilterSet):
+class ProductFilter(filters.FilterSet):
 
     # price = django_filters.NumericRangeFilter()
 
-    price_from = django_filters.NumberFilter(lookup_expr='gte', field_name='price')
-    price_to = django_filters.NumberFilter(lookup_expr='lte', field_name='price')
-    categories = django_filters.ModelMultipleChoiceFilter(
+    price_from = filters.NumberFilter(lookup_expr='gte', field_name='price')
+    price_to = filters.NumberFilter(lookup_expr='lte', field_name='price')
+    categories = filters.ModelMultipleChoiceFilter(
         queryset=Category.objects.all(), field_name='category')
 
     # total_price_from = django_filters.NumberFilter(method='filter_total_price_from')
