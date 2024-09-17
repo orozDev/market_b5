@@ -20,7 +20,10 @@ from django_filters.rest_framework.backends import DjangoFilterBackend
 class ListCreateProductApiView(GenericAPIView):
 
     queryset = Product.objects.all()
-    serializer_class = ListProductSerializer
+    serializer_classes = {
+        'get': ListProductSerializer,
+        'post': ProductSerializer,
+    }
     filter_backends = [
         SearchFilter,
         DjangoFilterBackend,
@@ -40,13 +43,34 @@ class ListCreateProductApiView(GenericAPIView):
         return self.get_paginated_response(serializer.data)
 
     def post(self, request, *args, **kwargs):
-        serializer = ProductSerializer(data=request.data)
-        if serializer.is_valid():
-            product = serializer.save(user=request.user)
-            read_serializer = ListProductSerializer(product, context={'request': request})
-            return Response(read_serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status.HTTP_400_BAD_REQUEST)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        product = serializer.save(user=request.user)
+        read_serializer = self.get_read_serializer(product)
+        return Response(read_serializer.data, status=status.HTTP_201_CREATED)
 
+    def get_serializer_class(self):
+
+        assert self.serializer_classes is not None, (
+                "'%s' should either include a `serializer_classes` attribute, "
+                "or override the `get_serializer_class()` method."
+                % self.__class__.__name__
+        )
+
+        method = self.request.method.lower()
+        return self.serializer_classes[method]
+
+    def get_read_serializer(self, *args, **kwargs):
+        assert self.serializer_classes.get('get') is not None, (
+                "'%s' should either include a serializer class for get method,"
+                "if want to use read serializer, please set serializer class for get method"
+                "or override the `get_serializer_class()` method."
+                % self.__class__.__name__
+        )
+        serializer = self.serializer_classes.get('get')
+
+        kwargs.setdefault('context', self.get_serializer_context())
+        return serializer(*args, **kwargs)
 
 
 @api_view(['GET', 'PATCH', 'DELETE'])
