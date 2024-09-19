@@ -5,19 +5,23 @@ from rest_framework.decorators import api_view, permission_classes as permission
 
 from api.auth.permissions import IsSuperUser
 from api.filters import ProductFilter
+from api.mixins import SerializerByMethodMixin, UltraGenericAPIView
 from api.paginations import SimplePagintion
+from api.permissions import IsOwnerOrReadOnly
 from api.serializers import DetailProductSerializer, ListProductSerializer, ProductSerializer, \
     BulkCreateProductAttributeSerializer, ProductAttributeSerializer, UpdateAttributeForProductSerializer
 from store.models import Product, ProductAttribute
 from rest_framework.response import Response
-from rest_framework.generics import get_object_or_404, GenericAPIView
+from rest_framework.generics import get_object_or_404, GenericAPIView, \
+    ListAPIView, ListCreateAPIView, RetrieveAPIView, RetrieveDestroyAPIView,\
+    RetrieveUpdateDestroyAPIView, DestroyAPIView, UpdateAPIView
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework.backends import DjangoFilterBackend
 
 
-class ListCreateProductApiView(GenericAPIView):
+class ListCreateProductApiView(UltraGenericAPIView):
 
     queryset = Product.objects.all()
     serializer_classes = {
@@ -49,48 +53,34 @@ class ListCreateProductApiView(GenericAPIView):
         read_serializer = self.get_read_serializer(product)
         return Response(read_serializer.data, status=status.HTTP_201_CREATED)
 
-    def get_serializer_class(self):
 
-        assert self.serializer_classes is not None, (
-                "'%s' should either include a `serializer_classes` attribute, "
-                "or override the `get_serializer_class()` method."
-                % self.__class__.__name__
-        )
+class DetailUpdateDeleteProductApiView(UltraGenericAPIView):
+    queryset = Product.objects.all()
+    serializer_classes = {
+        'get': DetailProductSerializer,
+        'patch': ProductSerializer,
+    }
+    permission_classes = [IsAuthenticatedOrReadOnly & IsOwnerOrReadOnly | IsSuperUser]
+    lookup_field = 'id'
 
-        method = self.request.method.lower()
-        return self.serializer_classes[method]
+    def get(self, request, *args, **kwargs):
+        product = self.get_object()
+        serializer = self.get_serializer(instance=product)
+        return Response(serializer.data)
 
-    def get_read_serializer(self, *args, **kwargs):
-        assert self.serializer_classes.get('get') is not None, (
-                "'%s' should either include a serializer class for get method,"
-                "if want to use read serializer, please set serializer class for get method"
-                "or override the `get_serializer_class()` method."
-                % self.__class__.__name__
-        )
-        serializer = self.serializer_classes.get('get')
-
-        kwargs.setdefault('context', self.get_serializer_context())
-        return serializer(*args, **kwargs)
-
-
-@api_view(['GET', 'PATCH', 'DELETE'])
-@permission_classes_d([IsAuthenticatedOrReadOnly | IsSuperUser])
-def detail_update_product(request, id):
-    product = get_object_or_404(Product, id=id)
-
-    if request.method == 'PATCH':
-        serializer = ProductSerializer(instance=product, data=request.data, partial=True)
+    def patch(self, request, *args, **kwargs):
+        product = self.get_object()
+        serializer = self.get_serializer(instance=product, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         product = serializer.save()
-        read_serializer = DetailProductSerializer(instance=product, context={'request': request})
+        read_serializer = self.get_read_serializer(instance=product, context={'request': request})
         return Response(read_serializer.data)
 
-    if request.method == 'DELETE':
+    def delete(self,request, *args, **kwargs):
+        product = self.get_object()
         product.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    serializer = DetailProductSerializer(instance=product, context={'request': request})
-    return Response(serializer.data)
 
 
 @api_view(['POST'])
