@@ -66,7 +66,7 @@ class LoginApiViews(GenericAPIView):
                 status.HTTP_401_UNAUTHORIZED,
             )
         
-        read_serializer = self.get_serializer(index=1,instance=user, context={"request": request})
+        read_serializer = self.get_serializer(index=1,instance=user)
         
         token = Token.objects.get_or_create(user=user)[0].key
 
