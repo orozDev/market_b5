@@ -1,40 +1,61 @@
 from pprint import pprint
 from django.db.models import Q
 from django.core.paginator import Paginator
-from rest_framework.decorators import api_view, permission_classes as permission_classes_d, parser_classes, authentication_classes
+from rest_framework.decorators import (
+    api_view,
+    permission_classes as permission_classes_d,
+    parser_classes,
+    authentication_classes,
+)
 
 from api.auth.permissions import IsSuperUser
 from api.filters import ProductFilter
 from api.mixins import SerializerByMethodMixin, UltraGenericAPIView
 from api.paginations import SimplePagintion
 from api.permissions import IsOwnerOrReadOnly
-from api.serializers import DetailProductSerializer, ListProductSerializer, ProductSerializer, \
-    BulkCreateProductAttributeSerializer, ProductAttributeSerializer, UpdateAttributeForProductSerializer
+from api.serializers import (
+    DetailProductSerializer,
+    ListProductSerializer,
+    ProductSerializer,
+    BulkCreateProductAttributeSerializer,
+    ProductAttributeSerializer,
+    UpdateAttributeForProductSerializer,
+)
 from store.models import Product, ProductAttribute
 from rest_framework.response import Response
-from rest_framework.generics import get_object_or_404, GenericAPIView, \
-    ListAPIView, ListCreateAPIView, RetrieveAPIView, RetrieveDestroyAPIView,\
-    RetrieveUpdateDestroyAPIView, DestroyAPIView, UpdateAPIView
+from rest_framework.generics import (
+    get_object_or_404,
+    GenericAPIView,
+    ListAPIView,
+    ListCreateAPIView,
+    RetrieveAPIView,
+    RetrieveDestroyAPIView,
+    RetrieveUpdateDestroyAPIView,
+    DestroyAPIView,
+    UpdateAPIView,
+)
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework.backends import DjangoFilterBackend
+from rest_framework.mixins import (
+    ListModelMixin,
+    CreateModelMixin,
+    DestroyModelMixin,
+    UpdateModelMixin,
+)
 
 
 class ListCreateProductApiView(UltraGenericAPIView):
 
     queryset = Product.objects.all()
     serializer_classes = {
-        'get': ListProductSerializer,
-        'post': ProductSerializer,
+        "get": ListProductSerializer,
+        "post": ProductSerializer,
     }
-    filter_backends = [
-        SearchFilter,
-        DjangoFilterBackend,
-        OrderingFilter
-    ]
-    search_fields = ['name', 'description', 'content']
-    ordering = ['name', 'price', 'rating', 'created_at']
+    filter_backends = [SearchFilter, DjangoFilterBackend, OrderingFilter]
+    search_fields = ["name", "description", "content"]
+    ordering = ["name", "price", "rating", "created_at"]
     # filterset_fields = ('category', 'tags', 'user', 'is_published',)
     filterset_class = ProductFilter
     pagination_class = SimplePagintion
@@ -54,59 +75,75 @@ class ListCreateProductApiView(UltraGenericAPIView):
         return Response(read_serializer.data, status=status.HTTP_201_CREATED)
 
 
-class DetailUpdateDeleteProductApiView(UltraGenericAPIView):
+class DetailUpdateDeleteProductApiView(
+    ListModelMixin, DestroyModelMixin, UltraGenericAPIView
+):
     queryset = Product.objects.all()
     serializer_classes = {
-        'get': DetailProductSerializer,
-        'patch': ProductSerializer,
+        "get": DetailProductSerializer,
+        "patch": ProductSerializer,
     }
     permission_classes = [IsAuthenticatedOrReadOnly & IsOwnerOrReadOnly | IsSuperUser]
-    lookup_field = 'id'
+    lookup_field = "id"
 
     def get(self, request, *args, **kwargs):
-        product = self.get_object()
-        serializer = self.get_serializer(instance=product)
-        return Response(serializer.data)
+        return self.list(request, *args, **kwargs)
+        # product = self.get_object()
+        # serializer = self.get_serializer(instance=product)
+        # return Response(serializer.data)
 
     def patch(self, request, *args, **kwargs):
         product = self.get_object()
-        serializer = self.get_serializer(instance=product, data=request.data, partial=True)
+        serializer = self.get_serializer(
+            instance=product, data=request.data, partial=True
+        )
         serializer.is_valid(raise_exception=True)
         product = serializer.save()
-        read_serializer = self.get_read_serializer(instance=product, context={'request': request})
+        read_serializer = self.get_read_serializer(
+            instance=product, context={"request": request}
+        )
         return Response(read_serializer.data)
 
-    def delete(self,request, *args, **kwargs):
-        product = self.get_object()
-        product.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
+        # product = self.get_object()
+        # product.delete()
+        # return Response(status=status.HTTP_204_NO_CONTENT)
 
 
+class CreateProductApiView(GenericAPIView):
+    queryset = ProductAttribute.objects
+    serializer_class = BulkCreateProductAttributeSerializer
+    permission_classes = [IsAuthenticated | IsSuperUser]
 
-@api_view(['POST'])
-@permission_classes_d([IsAuthenticated | IsSuperUser])
-def create_product_attributes(request):
-    serializer = BulkCreateProductAttributeSerializer(data=request.data)
-    serializer.is_valid(raise_exception=True)
-    attributes = serializer.validated_data.get('attributes')
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        attributes = serializer.validated_data.get("attributes")
 
-    for attribute in attributes:
-        ProductAttribute.objects.create(**attribute)
+        for attribute in attributes:
+            self.get_queryset().create(**attribute)
 
-    return Response(serializer.data, status.HTTP_201_CREATED)
+        return Response(serializer.data, status.HTTP_201_CREATED)
 
 
-@api_view(['DELETE', 'PATCH'])
-@permission_classes_d([IsAuthenticated | IsSuperUser])
-def update_delete_product_attributes(request, id):
-    attribute = get_object_or_404(ProductAttribute, id=id)
+class UpdateDeleteProduct(DestroyModelMixin, UpdateModelMixin, GenericAPIView):
+    queryset = ProductAttribute.objects.all()
+    lookup_field = "id"
+    permission_classes = [IsAuthenticatedOrReadOnly & IsOwnerOrReadOnly | IsSuperUser]
+    serializer_class = UpdateAttributeForProductSerializer
 
-    if request.method == 'PATCH':
-        serializer = UpdateAttributeForProductSerializer(data=request.data, instance=attribute, partial=True)
+    def patch(self, request, id, *args, **kwargs):
+        attribute = get_object_or_404(self.get_queryset(), id=id)
+        serializer = self.get_serializer(
+            data=request.data, instance=attribute, partial=True
+        )
         serializer.is_valid(raise_exception=True)
         serializer.save()
+
         return Response(serializer.data)
 
-    if request.method == 'DELETE':
+    def delete(self, request, id, *args, **kwargs):
+        attribute = get_object_or_404(self.get_queryset(), id=id)
         attribute.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
