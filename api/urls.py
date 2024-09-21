@@ -1,4 +1,5 @@
 from django.urls import path, include
+from .yasg import urlpatterns as url_doc
 from . import views
 
 urlpatterns = [
@@ -8,3 +9,5 @@ urlpatterns = [
     path('products/<int:id>/', views.DetailUpdateDeleteProductApiView.as_view()),
     path('auth/', include('api.auth.urls')),
 ]
+
+urlpatterns += url_doc
