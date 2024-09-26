@@ -1,49 +1,28 @@
-from pprint import pprint
-from django.db.models import Q
-from django.core.paginator import Paginator
-from rest_framework.decorators import (
-    api_view,
-    permission_classes as permission_classes_d,
-    parser_classes,
-    authentication_classes,
-)
-
 from api.auth.permissions import IsSuperUser
 from api.filters import ProductFilter
 from api.mixins import SerializerByMethodMixin, UltraGenericAPIView
 from api.paginations import SimplePagintion
-from api.permissions import IsOwnerOrReadOnly
+from api.permissions import IsOwnerOrReadOnly, IsAdminOrReadOnly
 from api.serializers import (
     DetailProductSerializer,
     ListProductSerializer,
     ProductSerializer,
     BulkCreateProductAttributeSerializer,
     ProductAttributeSerializer,
-    UpdateAttributeForProductSerializer,
+    UpdateAttributeForProductSerializer, CategorySerializer,
 )
-from store.models import Product, ProductAttribute
+from store.models import Product, ProductAttribute, Category
 from rest_framework.response import Response
 from rest_framework.generics import (
     get_object_or_404,
     GenericAPIView,
-    ListAPIView,
-    ListCreateAPIView,
-    RetrieveAPIView,
-    RetrieveDestroyAPIView,
-    RetrieveUpdateDestroyAPIView,
-    DestroyAPIView,
-    UpdateAPIView,
 )
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework.backends import DjangoFilterBackend
-from rest_framework.mixins import (
-    ListModelMixin,
-    CreateModelMixin,
-    DestroyModelMixin,
-    UpdateModelMixin,
-)
+from rest_framework.mixins import (ListModelMixin, DestroyModelMixin, UpdateModelMixin)
+from rest_framework.viewsets import ModelViewSet
 
 
 class ListCreateProductApiView(UltraGenericAPIView):
@@ -147,3 +126,15 @@ class UpdateDeleteProduct(DestroyModelMixin, UpdateModelMixin, GenericAPIView):
         attribute = get_object_or_404(self.get_queryset(), id=id)
         attribute.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CategoryViewSet(ModelViewSet):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    lookup_field = 'id'
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ["name"]
+    ordering = ["name", "created_at"]
+    pagination_class = SimplePagintion
+    permission_classes = (IsAuthenticatedOrReadOnly, IsAdminOrReadOnly)
+

@@ -130,8 +130,3 @@ class UpdateAttributeForProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductAttribute
         exclude = ('product',)
-
-
-
-
-
